@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChainType {
+  BTC
+  SOL
+  EVM
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  EXPIRED
+  UNDERPAID
+  OVERPAID
+}
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  passwordHash String
+  createdAt    DateTime         @default(now())
+  profile      MerchantProfile?
+}
+
+model MerchantProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  businessName    String
+  billingCurrency String   @default("THB")
+  feeEnabled      Boolean  @default(false)
+  feePercent      Float    @default(0)
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id])
+  wallets         Wallet[]
+  invoices        Invoice[]
+}
+
+model Wallet {
+  id         String    @id @default(cuid())
+  merchantId String
+  chainType  ChainType
+  address    String
+  createdAt  DateTime  @default(now())
+  merchant   MerchantProfile @relation(fields: [merchantId], references: [id])
+}
+
+model Invoice {
+  id                       String        @id @default(cuid())
+  merchantId               String
+  receiptNumber            String
+  fiatCurrency             String
+  fiatAmount               Float
+  cryptoAsset              String
+  network                  String
+  expectedCryptoAmount     Float
+  expectedCryptoAmountRaw  String
+  addressToPay             String
+  status                   InvoiceStatus @default(PENDING)
+  expiresAt                DateTime
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  payments                 Payment[]
+  merchant                 MerchantProfile @relation(fields: [merchantId], references: [id])
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  invoiceId         String
+  txHash            String
+  amountReceived    Float
+  amountReceivedRaw String
+  confirmed         Boolean  @default(false)
+  confirmations     Int      @default(0)
+  seenAt            DateTime?
+  createdAt         DateTime @default(now())
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id])
+}
